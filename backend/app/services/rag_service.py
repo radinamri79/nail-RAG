@@ -12,7 +12,8 @@ from app.config import settings
 from app.constants import (
     DEFAULT_SEARCH_LIMIT,
     similarity_score_threshold,
-    MAX_QUERY_VARIANTS
+    MAX_QUERY_VARIANTS,
+    CONVERSATION_HISTORY_LIMIT
 )
 from app.logger import get_logger
 
@@ -193,7 +194,8 @@ Score: {result.get('score', 0):.3f}
         context: List[Dict[str, Any]],
         conversation_history: Optional[List[Dict[str, str]]] = None,
         image_context: Optional[str] = None,
-        language: str = "en"
+        language: str = "en",
+        user_message_count: int = 0
     ) -> Dict[str, Any]:
         """
         Generate response using GPT-5.1 with retrieved context.
@@ -204,6 +206,7 @@ Score: {result.get('score', 0):.3f}
             conversation_history: Previous conversation messages
             image_context: Image analysis context (if image provided)
             language: Response language (en, fi, sv)
+            user_message_count: Number of user messages in conversation (for greeting logic)
             
         Returns:
             Dictionary with response and metadata
@@ -224,11 +227,20 @@ Score: {result.get('score', 0):.3f}
 ## Retrieved Context:
 {formatted_context}
 
+## Conversation History:
+You have access to the conversation history below. Use it to provide context-aware responses:
+- Reference previous topics we discussed when relevant
+- Build on information the user shared earlier (skin tone, preferences, occasions, etc.)
+- Make the conversation feel continuous and natural
+- Remember what the user mentioned in previous messages
+
 ## Instructions:
 - Answer based on the retrieved context above
-- If the context doesn't contain relevant information, say so
-- Provide specific, actionable advice
-- Use the same language as the user's query ({language})
+- When the retrieved context doesn't fully answer the question, ask thoughtful follow-up questions to better understand the user's needs
+- Provide specific, actionable advice with color names, shape recommendations, and styling tips
+- Respond in the same language as the user's query (detected: {language})
+- Be warm, friendly, and conversational - like chatting with a knowledgeable friend
+- This is the user's message number: {user_message_count}
 """
             
             if image_context:
@@ -236,9 +248,10 @@ Score: {result.get('score', 0):.3f}
             
             messages.append({"role": "system", "content": system_message})
             
-            # Add conversation history (last 5 messages for context)
+            # Add conversation history (last N messages for context)
             if conversation_history:
-                for msg in conversation_history[-5:]:
+                history_limit = min(CONVERSATION_HISTORY_LIMIT, len(conversation_history))
+                for msg in conversation_history[-history_limit:]:
                     messages.append({
                         "role": msg.get("role", "user"),
                         "content": msg.get("content", "")
@@ -253,7 +266,7 @@ Score: {result.get('score', 0):.3f}
                 model=settings.OPENAI_MODEL,
                 messages=messages,
                 temperature=settings.temperature_rag,
-                max_tokens=settings.max_tokens_response,
+                max_completion_tokens=settings.max_tokens_response,
                 stream=False
             )
             
@@ -287,6 +300,7 @@ Score: {result.get('score', 0):.3f}
         conversation_history: Optional[List[Dict[str, str]]] = None,
         image_context: Optional[str] = None,
         language: str = "en",
+        user_message_count: int = 0,
         use_cache: bool = True
     ) -> Dict[str, Any]:
         """
@@ -298,6 +312,7 @@ Score: {result.get('score', 0):.3f}
             conversation_history: Previous conversation messages
             image_context: Image analysis context
             language: Response language
+            user_message_count: Number of user messages (for greeting logic)
             use_cache: Whether to use response cache
             
         Returns:
@@ -334,7 +349,8 @@ Score: {result.get('score', 0):.3f}
                 context=context,
                 conversation_history=conversation_history,
                 image_context=image_context,
-                language=language
+                language=language,
+                user_message_count=user_message_count
             )
             
             # Add context metadata
@@ -391,7 +407,7 @@ Return only the alternative queries, one per line, without numbering or bullets.
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=200
+                max_completion_tokens=1000
             )
             
             variants = [

@@ -146,7 +146,7 @@ Please analyze the nail image and provide detailed information about:
                         ]
                     }
                 ],
-                max_tokens=500,
+                max_completion_tokens=500,
                 temperature=0.3  # Lower temperature for more factual analysis
             )
             

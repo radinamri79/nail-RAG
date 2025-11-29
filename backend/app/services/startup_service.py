@@ -51,7 +51,7 @@ class StartupService:
         try:
             logger.info("🔍 Checking Weaviate health...")
             
-            is_healthy = await check_weaviate_health()
+            is_healthy = check_weaviate_health()
             
             if is_healthy:
                 logger.info("✅ Weaviate health check passed")

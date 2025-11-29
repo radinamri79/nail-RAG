@@ -4,7 +4,8 @@ Weaviate service for collection management, chunking, import, and search
 from typing import List, Dict, Any, Optional
 import asyncio
 from weaviate.classes.config import Configure, Property, DataType
-from weaviate.classes.query import MetadataQuery
+from weaviate.classes.query import MetadataQuery, Filter
+from weaviate.collections.classes.config_vectorizers import VectorDistances
 from app.models.weaviate_client import get_weaviate_client
 from app.models.pydantic_models import NailGuideDocument
 from app.constants import CollectionNames, MAX_CHUNK_SIZE, CHUNK_OVERLAP, VECTOR_SEARCH_WEIGHT, BM25_SEARCH_WEIGHT
@@ -53,7 +54,7 @@ class WeaviateService:
         """Create a single collection with schema."""
         try:
             # Check if collection already exists
-            if await client.collections.exists(collection_name):
+            if client.collections.exists(collection_name):
                 logger.info(f"ℹ️ Collection '{collection_name}' already exists")
                 return
             
@@ -64,8 +65,8 @@ class WeaviateService:
                 properties=[
                     Property(name="document_id", data_type=DataType.INT, description="Original document ID"),
                     Property(name="category", data_type=DataType.TEXT, description="Document category"),
-                    Property(name="title", data_type=DataType.TEXT, description="Document title"),
-                    Property(name="content", data_type=DataType.TEXT, description="Chunked content"),
+                    Property(name="title", data_type=DataType.TEXT, description="Document title", vectorize_property_name=True),
+                    Property(name="content", data_type=DataType.TEXT, description="Chunked content", vectorize_property_name=True),
                     Property(name="questions", data_type=DataType.TEXT_ARRAY, description="Related questions"),
                     Property(name="answers", data_type=DataType.TEXT_ARRAY, description="Related answers"),
                     Property(name="chunk_index", data_type=DataType.INT, description="Chunk index within document"),
@@ -73,12 +74,10 @@ class WeaviateService:
                     Property(name="source_title", data_type=DataType.TEXT, description="Source document title"),
                 ],
                 vectorizer_config=Configure.Vectorizer.text2vec_openai(
-                    model=settings.EMBEDDING_MODEL,
-                    properties=["content", "title"]  # Vectorize content and title
+                    model=settings.EMBEDDING_MODEL
                 ),
                 vector_index_config=Configure.VectorIndex.hnsw(
-                    distance_metric="cosine",
-                    max_indexing_threads=4
+                    distance_metric=VectorDistances.COSINE
                 ),
             )
             
@@ -100,7 +99,7 @@ class WeaviateService:
             collections = CollectionNames.get_all_nail_collections()
             
             for collection_name in collections:
-                if not await client.collections.exists(collection_name):
+                if not client.collections.exists(collection_name):
                     await self._create_collection(client, collection_name)
             
             self._initialized = True
@@ -300,6 +299,8 @@ class WeaviateService:
             client = self._get_client()
             all_results = []
             
+            logger.debug(f"🔍 Searching {len(collection_names)} collections: {collection_names}")
+            
             # Search all collections in parallel
             tasks = []
             for collection_name in collection_names:
@@ -310,10 +311,13 @@ class WeaviateService:
             results_list = await asyncio.gather(*tasks, return_exceptions=True)
             
             # Combine and rank results
-            for results in results_list:
+            for i, results in enumerate(results_list):
                 if isinstance(results, Exception):
-                    logger.error(f"❌ Search error: {results}")
+                    logger.error(f"❌ Search error for '{collection_names[i]}': {results}")
+                    import traceback
+                    logger.error(traceback.format_exc())
                     continue
+                logger.debug(f"📦 Collection '{collection_names[i]}': {len(results)} results")
                 all_results.extend(results)
             
             # Sort by score (descending)
@@ -321,7 +325,7 @@ class WeaviateService:
             
             # Return top results
             top_results = all_results[:limit]
-            logger.debug(f"✅ Found {len(top_results)} results for query: {query[:50]}...")
+            logger.info(f"🔍 Search complete: {len(top_results)} results from {len(all_results)} total candidates (query: {query[:50]}...)")
             
             return top_results
             
@@ -353,9 +357,13 @@ class WeaviateService:
                 return_properties=["document_id", "category", "title", "content", "questions", "answers", "chunk_index", "total_chunks", "source_title"]
             )
             
+            logger.debug(f"🔍 Collection '{collection_name}': Hybrid search returned {len(result.objects)} objects for query: {query[:50]}...")
+            
             results = []
+            scores_found = []
             for obj in result.objects:
                 score = obj.metadata.score if obj.metadata and obj.metadata.score else 0
+                scores_found.append(score)
                 
                 if score >= similarity_threshold:
                     results.append({
@@ -372,6 +380,13 @@ class WeaviateService:
                         "score": score,
                         "uuid": str(obj.uuid),
                     })
+            
+            if scores_found:
+                max_score = max(scores_found)
+                min_score = min(scores_found)
+                logger.debug(f"📊 Collection '{collection_name}': Score range [{min_score:.3f}, {max_score:.3f}], threshold={similarity_threshold}, passed={len(results)}/{len(result.objects)}")
+            else:
+                logger.warning(f"⚠️ Collection '{collection_name}': No objects returned from hybrid search")
             
             return results
             

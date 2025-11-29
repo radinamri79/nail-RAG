@@ -46,6 +46,7 @@ class CollectionNames:
 
 # Conversation memory
 SHORT_TERM_MEMORY_LIMIT = 10  # Last N messages for short-term memory
+CONVERSATION_HISTORY_LIMIT = 8  # Number of previous messages to include in LLM context
 CONVERSATION_BATCH_SIZE = 10  # Messages grouped for processing
 
 # Pagination defaults

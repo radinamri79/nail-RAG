@@ -75,7 +75,7 @@ If unsure, return all categories separated by commas."""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,  # Low temperature for consistent classification
-                max_tokens=100
+                max_completion_tokens=100
             )
             
             result = response.choices[0].message.content.strip()

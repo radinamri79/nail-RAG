@@ -7,6 +7,7 @@ from app.services.rag_service import rag_service
 from app.services.image_service import image_service
 from app.services.multilingual_service import multilingual_service
 from app.services.conversation_manager import conversation_manager
+from app.constants import CONVERSATION_HISTORY_LIMIT
 from app.logger import get_logger
 
 logger = get_logger("chat_service")
@@ -73,8 +74,10 @@ class ChatService:
                     image_context = image_result["analysis"]
                     logger.info("✅ Image analysis completed")
             
-            # Step 4: Get conversation history
+            # Step 4: Get conversation history and message count
             recent_context = conversation_manager.get_recent_context(conversation_id)
+            stats = conversation_manager.get_conversation_stats(conversation_id)
+            user_message_count = stats.get("user_messages", 0)
             
             # Step 5: Process query with RAG
             logger.info(f"🔍 Processing query with RAG...")
@@ -82,7 +85,8 @@ class ChatService:
                 query=translated_query,
                 conversation_history=recent_context,
                 image_context=image_context,
-                language=detected_language
+                language=detected_language,
+                user_message_count=user_message_count
             )
             
             answer = rag_response.get("answer", "I apologize, but I couldn't generate a response.")
@@ -177,6 +181,8 @@ class ChatService:
             
             # Step 4: Get context and generate streaming response
             recent_context = conversation_manager.get_recent_context(conversation_id)
+            stats = conversation_manager.get_conversation_stats(conversation_id)
+            user_message_count = stats.get("user_messages", 0)
             
             # Retrieve context
             context = await rag_service.retrieve_context(
@@ -196,9 +202,20 @@ class ChatService:
 ## Retrieved Context:
 {formatted_context}
 
+## Conversation History:
+You have access to the conversation history below. Use it to provide context-aware responses:
+- Reference previous topics we discussed when relevant
+- Build on information the user shared earlier (skin tone, preferences, occasions, etc.)
+- Make the conversation feel continuous and natural
+- Remember what the user mentioned in previous messages
+
 ## Instructions:
 - Answer based on the retrieved context above
-- Use the same language as the user's query ({detected_language})
+- When the retrieved context doesn't fully answer the question, ask thoughtful follow-up questions to better understand the user's needs
+- Provide specific, actionable advice with color names, shape recommendations, and styling tips
+- Respond in the same language as the user's query (detected: {detected_language})
+- Be warm, friendly, and conversational - like chatting with a knowledgeable friend
+- This is the user's message number: {user_message_count}
 """
             
             if image_context:
@@ -209,7 +226,8 @@ class ChatService:
             ]
             
             if recent_context:
-                for msg in recent_context[-5:]:
+                history_limit = min(CONVERSATION_HISTORY_LIMIT, len(recent_context))
+                for msg in recent_context[-history_limit:]:
                     messages.append(msg)
             
             messages.append({"role": "user", "content": translated_query})
@@ -224,7 +242,7 @@ class ChatService:
                 model=settings.OPENAI_MODEL,
                 messages=messages,
                 temperature=settings.temperature_rag,
-                max_tokens=settings.max_tokens_response,
+                max_completion_tokens=settings.max_tokens_response,
                 stream=True
             ):
                 if chunk.choices[0].delta.content:
