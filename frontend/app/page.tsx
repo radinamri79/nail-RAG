@@ -36,6 +36,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import { MarkdownRenderer } from "../components/MarkdownRenderer";
 
 // --- Types ---
 type Message = {
@@ -750,13 +751,17 @@ export default function AIStylistPage() {
                     )}
                     
                     <div
-                      className={`text-[15px] leading-relaxed text-gray-700 block ${
+                      className={`text-[15px] leading-relaxed block ${
                         msg.role === "user"
-                          ? "bg-white/60 p-3 rounded-2xl rounded-tl-none inline-block shadow-sm"
+                          ? "bg-white/60 p-3 rounded-2xl rounded-tl-none inline-block shadow-sm text-gray-700"
                           : ""
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "assistant" ? (
+                        <MarkdownRenderer content={msg.content} />
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                     {msg.image_analysis && (
                       <div className="bg-[#F9FAFB] border border-gray-200 rounded-xl p-3 mt-2">
