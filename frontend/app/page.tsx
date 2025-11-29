@@ -37,6 +37,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { MarkdownRenderer } from "../components/MarkdownRenderer";
+import { MessageActions } from "../components/MessageActions";
 
 // --- Types ---
 type Message = {
@@ -46,6 +47,8 @@ type Message = {
   timestamp: Date;
   image_analysis?: string;
   image?: string; // base64 preview or image URL
+  isLiked?: boolean;
+  isDisliked?: boolean;
 };
 
 type ChatSession = {
@@ -157,6 +160,35 @@ export default function AIStylistPage() {
   // Image Upload State
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // --- Handle Like/Dislike ---
+  const handleLike = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              isLiked: !msg.isLiked,
+              isDisliked: msg.isLiked ? false : msg.isDisliked,
+            }
+          : msg
+      )
+    );
+  }, []);
+
+  const handleDislike = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              isDisliked: !msg.isDisliked,
+              isLiked: msg.isDisliked ? false : msg.isLiked,
+            }
+          : msg
+      )
+    );
+  }, []);
 
   // --- Load chat history from localStorage ---
   useEffect(() => {
@@ -771,6 +803,14 @@ export default function AIStylistPage() {
                         <p className="text-sm text-gray-600">{msg.image_analysis}</p>
                       </div>
                     )}
+                    <MessageActions
+                      messageId={msg.id}
+                      content={msg.content}
+                      onLike={handleLike}
+                      onDislike={handleDislike}
+                      isLiked={msg.isLiked}
+                      isDisliked={msg.isDisliked}
+                    />
                   </div>
                 </div>
               ))}
