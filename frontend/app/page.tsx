@@ -169,7 +169,7 @@ export default function AIStylistPage() {
           ? {
               ...msg,
               isLiked: !msg.isLiked,
-              isDisliked: msg.isLiked ? false : msg.isDisliked,
+              isDisliked: msg.isLiked ? msg.isDisliked : false, // Clear dislike if we're turning on like
             }
           : msg
       )
@@ -183,7 +183,7 @@ export default function AIStylistPage() {
           ? {
               ...msg,
               isDisliked: !msg.isDisliked,
-              isLiked: msg.isDisliked ? false : msg.isLiked,
+              isLiked: msg.isDisliked ? msg.isLiked : false, // Clear like if we're turning on dislike
             }
           : msg
       )
@@ -806,6 +806,7 @@ export default function AIStylistPage() {
                     <MessageActions
                       messageId={msg.id}
                       content={msg.content}
+                      role={msg.role}
                       onLike={handleLike}
                       onDislike={handleDislike}
                       isLiked={msg.isLiked}

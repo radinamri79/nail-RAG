@@ -4,6 +4,7 @@ import { ThumbsUp, ThumbsDown, Copy, Check } from 'lucide-react';
 interface MessageActionsProps {
   messageId: string;
   content: string;
+  role: 'user' | 'assistant';
   onLike?: (messageId: string) => void;
   onDislike?: (messageId: string) => void;
   isLiked?: boolean;
@@ -13,6 +14,7 @@ interface MessageActionsProps {
 export const MessageActions: React.FC<MessageActionsProps> = ({
   messageId,
   content,
+  role,
   onLike,
   onDislike,
   isLiked = false,
@@ -31,35 +33,85 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
   };
 
   const handleLike = () => {
-    onLike?.(messageId);
+    // If already liked, toggle it off. If not liked but disliked, clear dislike first
+    if (isLiked) {
+      onLike?.(messageId); // Toggle off
+    } else {
+      // Clear dislike if it's active, then set like
+      if (isDisliked) {
+        onDislike?.(messageId); // Clear dislike
+      }
+      onLike?.(messageId); // Set like
+    }
   };
 
   const handleDislike = () => {
-    onDislike?.(messageId);
+    // If already disliked, toggle it off. If not disliked but liked, clear like first
+    if (isDisliked) {
+      onDislike?.(messageId); // Toggle off
+    } else {
+      // Clear like if it's active, then set dislike
+      if (isLiked) {
+        onLike?.(messageId); // Clear like
+      }
+      onDislike?.(messageId); // Set dislike
+    }
   };
 
+  // Only show copy for user messages
+  if (role === 'user') {
+    return (
+      <div className="flex items-center gap-2 mt-2 text-gray-400">
+        {/* Copy Button - User messages only */}
+        <button
+          onClick={handleCopy}
+          className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
+          title="Copy message"
+        >
+          {copied ? (
+            <Check className="w-4 h-4 text-green-500" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
+        </button>
+
+        {/* Copied feedback */}
+        {copied && (
+          <span className="text-xs text-green-500 font-medium animate-fade-in">
+            Copied!
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // AI assistant messages - show like, dislike and copy
   return (
     <div className="flex items-center gap-2 mt-2 text-gray-400">
-      {/* Like Button */}
+      {/* Like Button - AI messages only */}
       <button
         onClick={handleLike}
-        className={`p-2 rounded-lg transition-all duration-200 hover:bg-gray-100 group ${
-          isLiked ? 'text-[#D98B99]' : 'text-gray-400 hover:text-gray-600'
+        className={`p-2 rounded-lg transition-all duration-200 hover:bg-gray-100 ${
+          isLiked
+            ? 'text-[#D98B99]'
+            : 'text-gray-400 hover:text-gray-600'
         }`}
-        title="Like this message"
+        title={isLiked ? 'Unlike this message' : 'Like this message'}
       >
         <ThumbsUp
           className={`w-4 h-4 transition-all ${isLiked ? 'fill-current' : ''}`}
         />
       </button>
 
-      {/* Dislike Button */}
+      {/* Dislike Button - AI messages only */}
       <button
         onClick={handleDislike}
         className={`p-2 rounded-lg transition-all duration-200 hover:bg-gray-100 ${
-          isDisliked ? 'text-[#D98B99]' : 'text-gray-400 hover:text-gray-600'
+          isDisliked
+            ? 'text-[#D98B99]'
+            : 'text-gray-400 hover:text-gray-600'
         }`}
-        title="Dislike this message"
+        title={isDisliked ? 'Remove dislike' : 'Dislike this message'}
       >
         <ThumbsDown
           className={`w-4 h-4 transition-all ${isDisliked ? 'fill-current' : ''}`}
