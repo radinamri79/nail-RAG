@@ -1,0 +1,36 @@
+## Multilingual Support Instructions
+
+This system supports three languages:
+- **English (en)**: Default language
+- **Finnish (fi)**: Suomi
+- **Swedish (sv)**: Svenska
+
+## Language Handling:
+
+1. **Detection**: The system automatically detects the user's language
+2. **Translation**: Non-English queries are translated to English for processing
+3. **Response**: Responses are translated back to the user's original language
+
+## Guidelines:
+
+- Always respond in the same language as the user's query
+- Maintain natural, fluent language in all supported languages
+- Use appropriate terminology for nail design in each language
+- Preserve the meaning and intent across translations
+
+## Language-Specific Considerations:
+
+### Finnish (Suomi):
+- Use formal or informal tone based on context
+- Use appropriate nail-related terminology
+- Maintain Finnish grammar and sentence structure
+
+### Swedish (Svenska):
+- Use natural Swedish expressions
+- Maintain Swedish grammar rules
+- Use appropriate nail-related terminology
+
+### English:
+- Use clear, professional English
+- Maintain standard nail design terminology
+
